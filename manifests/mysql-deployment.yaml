@@ -9,18 +9,17 @@ metadata:
 spec:
   ports:
     - port: 3306
-  ##
-  # Create service selector labels here
-  ##
+  selector:
+    app: wordpress
+    tier: mysql
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: wordpress-mysql
 data:
-  ##
-  # create non-sensative data attributes
-  ##
+  MYSQL_DATABASE: wordpress
+  MYSQL_USER: wordpress
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -30,35 +29,53 @@ metadata:
     app: wordpress
     tier: mysql
 spec:
-  ##
-  # Create app label selectors here
-  ##
+  selector:
+    matchLabels:
+      app: wordpress
+      tier: mysql
   template:
-    ##
-    # Create metadata labels here
-    ##
+    metadata:
+      labels:
+        app: wordpress
+        tier: mysql
     spec:
       containers:
       - image: mysql:8.0
         name: mysql
+        envFrom:
+        - configMapRef:
+            name: wordpress-mysql
         env:
-        ##
-        # mount non-sensitive environment vars from configmap
-        # MYSQL_DATABASE | MYSQL_USER
-        ##
-
-        ##
-        # mount sensitive environment vars from secret
-        # MYSQL_ROOT_PASSWORD | MYSQL_PASSWORD
-        ##
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: database
+              key: root-password
+        - name: MYSQL_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: database
+              key: user-password
         ports:
         - containerPort: 3306
           name: mysql
-      ##
-      # define volume mounts here, be sure to reference
-      # the PVC in your container spec
-      ##
+        volumeMounts:
+        - name: mysql-persistent-storage
+          mountPath: /var/lib/mysql
+      volumes:
+      - name: mysql-persistent-storage
+        persistentVolumeClaim:
+          claimName: mysql-pv-claim
 ---
-##
-# Create persistent volume claim here
-##
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pv-claim
+  labels:
+    app: wordpress
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 20Gi
