@@ -42,10 +42,17 @@ spec:
       containers:
       - image: mysql:8.0
         name: mysql
-        envFrom:
-        - configMapRef:
-            name: wordpress-mysql
         env:
+        - name: MYSQL_DATABASE
+          valueFrom:
+            configMapKeyRef:
+              name: wordpress-mysql
+              key: database
+        - name: MYSQL_USER
+          valueFrom:
+            configMapKeyRef:
+              name: wordpress-mysql
+              key: user
         - name: MYSQL_ROOT_PASSWORD
           valueFrom:
             secretKeyRef:
@@ -78,4 +85,4 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 20Gi
+      storage: 1Gi
